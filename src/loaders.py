@@ -41,65 +41,97 @@ _retry = retry(
 
 @_retry
 def load_mrds_mines(
-    bbox: tuple[float, float, float, float] = BLACK_HILLS_BBOX,
+    bbox: tuple[float, float, float, float],
     force_refresh: bool = False,
 ) -> gpd.GeoDataFrame:
     """
-    Query USGS MRDS WFS for all mine records within the bounding box.
-    Uses WFS 1.1.0 with a bounding box spatial filter.
-    Returns all MRDS fields available in the condensed WFS output.
+    Load mine records from USGS MRDS via WFS (GML format).
 
-    Parameters
-    bbox : (min_lon, min_lat, max_lon, max_lat) (default Black Hills)
-
-    Returns
-    GeoDataFrame with one row per mine record, EPSG:4326
+    MRDS WFS only supports GML output as JSON is not available.
+    Fields returned: dep_id, site_name, dev_stat, fips_code,
+                     huc_code, quad_code, url, code_list, geometry
     """
-    cache_file = CACHE_DIR/f"mrds_mines_{bbox[0]}_{bbox[1]}_{bbox[2]}_{bbox[3]}.geojson".replace("-", "n")
+    cache_key  = f"mrds_{bbox[0]:.2f}_{bbox[1]:.2f}_{bbox[2]:.2f}_{bbox[3]:.2f}.geojson"
+    cache_file = CACHE_DIR / cache_key
 
     if cache_file.exists() and not force_refresh:
-        log.info("MRDS loaded from cache")
         return gpd.read_file(cache_file)
 
-    print("Querying USGS MRDS WFS for Black Hills mines...")
-    print(f"  Bounding box: {bbox}")
+    r = requests.get(
+        "https://mrdata.usgs.gov/wfs/mrds",
+        params={
+            "service":     "WFS",
+            "version":     "1.0.0",
+            "request":     "GetFeature",
+            "typeName":    "mrds",
+            "bbox":        f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}",
+            "maxFeatures": "5000",
+        },
+        timeout=120,
+    )
+    r.raise_for_status()
 
-    # WFS 1.1.0 BBOX query 
-    params = {
-        "service":     "WFS",
-        "version":     "1.1.0",
-        "request":     "GetFeature",
-        "typeName":    "mrds",
-        "outputFormat":"json",
-        "BBOX":        f"{bbox[1]},{bbox[0]},{bbox[3]},{bbox[2]},EPSG:4326",
-        "maxFeatures": 5000,
-    }
-
-    try:
-        r = requests.get(MRDS_WFS_URL, params=params, timeout=120)
-        r.raise_for_status()
-        payload = r.json()
-    except Exception as e:
-        warnings.warn(f"MRDS WFS query failed: {e}", UserWarning)
+    if not r.text.strip():
+        warnings.warn("MRDS WFS returned empty response.", UserWarning)
         return gpd.GeoDataFrame()
 
-    features = payload.get("features", [])
-    if not features:
+    from xml.etree import ElementTree as ET
+    from shapely.geometry import Point
+
+    try:
+        root = ET.fromstring(r.text)
+    except ET.ParseError as e:
+        warnings.warn(f"MRDS WFS GML parse error: {e}", UserWarning)
+        return gpd.GeoDataFrame()
+
+    ns = {
+        "wfs": "http://www.opengis.net/wfs",
+        "gml": "http://www.opengis.net/gml",
+        "ms":  "http://mapserver.gis.umn.edu/mapserver",
+    }
+
+    TEXT_FIELDS = [
+        "dep_id", "site_name", "dev_stat", "fips_code",
+        "huc_code", "quad_code", "url", "code_list",
+    ]
+
+    records = []
+    for member in root.findall(".//gml:featureMember", ns):
+        node = member.find("ms:mrds", ns)
+        if node is None:
+            continue
+
+        rec = {}
+        for field in TEXT_FIELDS:
+            el = node.find(f"ms:{field}", ns)
+            rec[field] = el.text.strip() if el is not None and el.text else None
+
+        coords_el = node.find(".//gml:coordinates", ns)
+        if coords_el is not None and coords_el.text:
+            try:
+                first_pair = coords_el.text.strip().split()[0]
+                lon, lat   = [float(v) for v in first_pair.split(",")]
+                rec["geometry"] = Point(lon, lat)
+            except (ValueError, IndexError):
+                rec["geometry"] = None
+        else:
+            rec["geometry"] = None
+
+        if rec["geometry"] is not None:
+            records.append(rec)
+
+    if not records:
         warnings.warn(
-            "MRDS returned 0 features for this bounding box.",
+            f"MRDS WFS returned 0 parseable records for bbox {bbox}. "
+            "Mine monitoring coverage on Tribal lands may be sparse.",
             UserWarning,
         )
         return gpd.GeoDataFrame()
 
-    gdf = gpd.GeoDataFrame.from_features(features, crs=CRS_GEOGRAPHIC)
-
-    # Standardize column names to lowercase
-    gdf.columns = [c.lower() for c in gdf.columns]
-
-    print(f"  MRDS records returned: {len(gdf):,}")
+    gdf = gpd.GeoDataFrame(records, geometry="geometry", crs="EPSG:4326")
     gdf.to_file(cache_file, driver="GeoJSON")
+    log.info("MRDS loaded and cached: %d mines", len(gdf))
     return gdf
-
 
 def clean_mrds(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """

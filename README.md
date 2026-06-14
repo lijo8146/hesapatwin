@@ -62,7 +62,7 @@ record, not truncated by the spatial filter.
 | USGS NLCD/LCMAP | Land cover change | 04 |
 
 ## Quick Start
-3```bash
+```bash
 git clone https://github.com/your-org/black_hills_mining_twin
 cd black_hills_mining_twin
 

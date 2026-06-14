@@ -157,7 +157,7 @@ def print_data_acknowledgment(source_keys: list[str] | None = None) -> None:
 
 def generate_citations(source_keys: list[str]) -> str:
     """Return a plain-text citation block for notebook outputs."""
-    lines = ["DATA CITATIONS", "=" * 60]
+    lines=[]
     for key in source_keys:
         src = _DATA_SOURCES.get(key)
         if not src:
@@ -171,7 +171,7 @@ def generate_citations(source_keys: list[str]) -> str:
     lines.append(f"  {TREATY_PROVENANCE['treaty_territory']}")
     lines.append(f"  {TREATY_PROVENANCE['treaty_status']}")
     lines.append(f"  {TREATY_PROVENANCE['legal_citation']}")
-    lines.append(f"  TK Label: {TREATY_PROVENANCE['tk_label']} — {TREATY_PROVENANCE['tk_label_note']}")
+    lines.append(f"  TK Label: {TREATY_PROVENANCE['tk_label']} {TREATY_PROVENANCE['tk_label_note']}")
     lines.append("\nGOVERNANCE FRAMEWORKS: OCAP® | CARE | FAIR | IEEE 2890-2025")
     for name, url in GOVERNANCE_REFS.items():
         lines.append(f"  {name.upper()}: {url}")
