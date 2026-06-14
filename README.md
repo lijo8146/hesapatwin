@@ -16,7 +16,7 @@ public federal data. Every record in this system carries this Treaty status and
 territorial context as a provenance field.
 
 ## Purpose
-A temporal, AI-assisted, sovereignty-aware digital twin reconstructing
+A temporal, sovereignty-aware digital twin reconstructing
 the evolution of mining landscapes in the Black Hills of South Dakota and Wyoming.
 
 Phase I builds:
