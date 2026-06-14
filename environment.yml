@@ -1,0 +1,41 @@
+name: black-hills-twin
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  # Geospatial
+  - geopandas>=0.14
+  - shapely>=2.0
+  - pyproj>=3.6
+  - fiona>=1.9
+  - rioxarray>=0.15
+  - rasterio>=1.3
+  # ── Data access
+  - requests>=2.31
+  - owslib>=0.29          # WFS client for MRDS queries
+  - tenacity>=8.2
+  - netcdf4>=1.6
+  - xarray>=2023.6
+  # Data
+  - pandas>=2.0
+  - numpy>=1.24
+  - scipy>=1.11
+  - openpyxl>=3.1
+  - pyarrow>=12.0         # GeoParquet
+  # Visualization 
+  - matplotlib>=3.7
+  - seaborn>=0.12
+  - contextily>=1.4
+  - folium>=0.14          # Interactive demo map
+  - branca>=0.6           # Folium colormap support
+  # AI extraction
+  - anthropic>=0.25       # Claude API for structured extraction
+  # Notebooks
+  - jupyter>=1.0
+  - jupyterlab>=4.0
+  - ipykernel>=6.0
+  # Utilities 
+  - pyyaml>=6.0
+  - python-dotenv>=1.0
+  - tqdm>=4.65
