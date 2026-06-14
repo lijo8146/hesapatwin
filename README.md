@@ -94,8 +94,8 @@ black_hills_mining_twin/
 │   ├── loaders.py          # MRDS WFS, BLM, NHD, WBD loaders
 │   └── sovereignty.py      # Governance acknowledgment + citations
 ├── data/
-│   └── cache/              # GITIGNORED — downloaded datasets
-├── outputs/                # GITIGNORED — analysis products
+│   └── cache/              # GITIGNORED: downloaded datasets
+├── outputs/                # GITIGNORED: analysis products
 │   └── figures/
 ├── docs/
 │   └── data_sovereignty.md
@@ -122,5 +122,5 @@ Phase II will add full Tribal data governance with Nation-authorized
 TK and BC labels from Local Contexts.
 
 ## Citation
-Jones, L. et al. (2026). Black Hills Mining Landscape Digital Twin,
+Jones, L. (2026). Black Hills Mining Landscape Digital Twin,
 Phase I. 
