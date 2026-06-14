@@ -1,7 +1,7 @@
 # Black Hills Mining Landscape Digital Twin Phase I
 
 **Authors:** Lilly Jones, PhD 
-**Territory:** He Sapa (Black Hills) Unceded Lakota Territory  
+**Territory:** He Sapa (Black Hills) Unceded Lakota Territory                                          
 **Phase:** I: Public data only. No sensitive Tribal data.
 
 ## Territorial Acknowledgment
