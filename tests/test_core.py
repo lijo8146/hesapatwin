@@ -5,7 +5,7 @@ import pytest
 from shapely.geometry import Point
 
 from src.constants import COMMODITY_GROUPS
-from src.loaders import assign_commodity_group
+from src.loaders import _bbox_tiles, _fetch_arcgis_geojson_pages, assign_commodity_group
 from src.sovereignty import build_record_provenance
 from src.validation import REQUIRED_PROVENANCE_FIELDS, validate_gazetteer, write_manifest
 
@@ -14,6 +14,42 @@ def test_commodity_classifier_uses_mrds_code_list_text():
     assert assign_commodity_group("AU, AG, CU", COMMODITY_GROUPS) == "gold"
     assert assign_commodity_group("cassiterite; SN", COMMODITY_GROUPS) == "tin"
     assert assign_commodity_group(None, COMMODITY_GROUPS) == "other"
+
+
+def test_bbox_tiles_cover_study_area_without_large_requests():
+    tiles = _bbox_tiles((-104.6, 43.4, -103.3, 44.6), max_span_degrees=0.5)
+    assert len(tiles) == 9
+    assert all(tile[2] - tile[0] <= 0.5 for tile in tiles)
+    assert all(tile[3] - tile[1] <= 0.5 for tile in tiles)
+
+
+def test_arcgis_pagination_fetches_beyond_service_limit(monkeypatch):
+    calls = []
+
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    def fake_get(url, params, timeout):
+        calls.append(params.copy())
+        offset = params["resultOffset"]
+        count = 2_000 if offset == 0 else 17
+        return Response({
+            "type": "FeatureCollection",
+            "features": [{"id": offset + i} for i in range(count)],
+            "exceededTransferLimit": offset == 0,
+        })
+
+    monkeypatch.setattr("src.loaders.requests.get", fake_get)
+    features = _fetch_arcgis_geojson_pages("https://example.test", {}, "test")
+    assert len(features) == 2_017
+    assert [call["resultOffset"] for call in calls] == [0, 2_000]
 
 
 def test_provenance_does_not_self_certify_compliance():

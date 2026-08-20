@@ -49,6 +49,65 @@ def _validate_geojson_response(response: requests.Response, source: str) -> dict
         raise DataSourceError(f"{source} returned no features")
     return payload
 
+
+def _bbox_tiles(
+    bbox: tuple[float, float, float, float],
+    max_span_degrees: float = 0.5,
+) -> list[tuple[float, float, float, float]]:
+    """Split a bounding box into stable, API-friendly spatial tiles."""
+    min_lon, min_lat, max_lon, max_lat = bbox
+    if min_lon >= max_lon or min_lat >= max_lat:
+        raise ValueError("bbox must be (min_lon, min_lat, max_lon, max_lat)")
+    if max_span_degrees <= 0:
+        raise ValueError("max_span_degrees must be positive")
+    tiles = []
+    lon = min_lon
+    while lon < max_lon:
+        next_lon = min(lon + max_span_degrees, max_lon)
+        lat = min_lat
+        while lat < max_lat:
+            next_lat = min(lat + max_span_degrees, max_lat)
+            tiles.append((lon, lat, next_lon, next_lat))
+            lat = next_lat
+        lon = next_lon
+    return tiles
+
+
+def _fetch_arcgis_geojson_pages(
+    url: str,
+    params: dict[str, object],
+    source: str,
+    page_size: int = 2_000,
+) -> list[dict]:
+    """Fetch every page from an ArcGIS layer without accepting truncation."""
+    features: list[dict] = []
+    offset = 0
+    while True:
+        page_params = {
+            **params,
+            "resultOffset": offset,
+            "resultRecordCount": page_size,
+        }
+        response = requests.get(url, params=page_params, timeout=120)
+        response.raise_for_status()
+        try:
+            payload = response.json()
+        except requests.JSONDecodeError as exc:
+            raise DataSourceError(f"{source} returned invalid JSON at offset {offset}") from exc
+        if payload.get("error"):
+            raise DataSourceError(f"{source} error at offset {offset}: {payload['error']}")
+        if payload.get("type") not in (None, "FeatureCollection"):
+            raise DataSourceError(f"{source} returned an unexpected payload type")
+        page = payload.get("features", [])
+        if not page:
+            break
+        features.extend(page)
+        log.info("%s fetched %s features at offset %s", source, len(page), offset)
+        if len(page) < page_size and not payload.get("exceededTransferLimit", False):
+            break
+        offset += len(page)
+    return features
+
 # MRDS Mine Gazetteer
 
 def load_mrds_mines(
@@ -243,9 +302,13 @@ def load_nhd_streams(
     """
     Load NHD stream flowlines for the Black Hills.
     Parameters
-    min_stream_order : Strahler order filter (2+ keeps named streams)
+    min_stream_order : Minimum Strahler stream order to return.
+
+    The ArcGIS service caps each response at 2,000 records. The loader splits
+    the study area into half-degree tiles, paginates every tile, and removes
+    cross-tile duplicates using the service's stable feature identifier.
     """
-    cache_file = CACHE_DIR/f"nhd_streams_order{min_stream_order}.geojson"
+    cache_file = CACHE_DIR/f"nhd_streams_order{min_stream_order}_tiled_v2.geojson"
     if cache_file.exists() and not force_refresh:
         return gpd.read_file(cache_file)
 
@@ -253,31 +316,51 @@ def load_nhd_streams(
         "https://hydro.nationalmap.gov/arcgis/rest/services"
         "/NHDPlus_HR/MapServer/3/query"
     )
-    r = requests.get(
-        url,
-        params={
+    base_params = {
             "where":          f"streamorde >= {min_stream_order}",
-            "outFields":      "reachcode,gnis_name,streamorde,lengthkm",
+            "outFields":      (
+                "OBJECTID,permanent_identifier,nhdplusid,reachcode,"
+                "gnis_name,streamorde,lengthkm"
+            ),
             "f":              "geojson",
             "returnGeometry": "true",
             "outSR":          "4326",
-            "geometry":       f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}",
             "geometryType":   "esriGeometryEnvelope",
             "spatialRel":     "esriSpatialRelIntersects",
             "inSR":           "4326",
-        },
-        timeout=120,
-    )
-    _validate_geojson_response(r, "NHDPlus HR")
-
-    gdf = gpd.read_file(io.BytesIO(r.content))
+            "orderByFields":  "OBJECTID ASC",
+    }
+    features: list[dict] = []
+    tiles = _bbox_tiles(bbox, max_span_degrees=0.5)
+    for index, tile in enumerate(tiles, start=1):
+        tile_params = {
+            **base_params,
+            "geometry": f"{tile[0]},{tile[1]},{tile[2]},{tile[3]}",
+        }
+        features.extend(_fetch_arcgis_geojson_pages(
+            url,
+            tile_params,
+            source=f"NHDPlus HR tile {index}/{len(tiles)}",
+        ))
+    if not features:
+        raise DataSourceError("NHDPlus HR returned no stream features")
+    gdf = gpd.GeoDataFrame.from_features(features, crs=CRS_GEOGRAPHIC)
     if not gdf.empty:
-        gdf = gdf.set_crs(CRS_GEOGRAPHIC, allow_override=True)
-        reach_col = next((c for c in gdf.columns if c.lower() == "reachcode"), None)
-        if reach_col:
-            gdf = gdf.drop_duplicates(subset=[reach_col]).reset_index(drop=True)
+        id_col = next(
+            (c for c in gdf.columns if c.lower() in ("objectid", "nhdplusid")),
+            None,
+        )
+        if id_col is None:
+            raise DataSourceError("NHDPlus HR response lacked a stable feature identifier")
+        gdf = gdf.drop_duplicates(subset=[id_col]).reset_index(drop=True)
+        gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty].copy()
         gdf.to_file(cache_file, driver="GeoJSON")
-    log.info("NHD streams (order >= %s): %s segments", min_stream_order, len(gdf))
+    log.info(
+        "NHD streams (order >= %s): %s unique segments from %s tiles",
+        min_stream_order,
+        len(gdf),
+        len(tiles),
+    )
     return gdf
 
 
