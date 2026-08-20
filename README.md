@@ -1,126 +1,101 @@
-# Black Hills Mining Landscape Digital Twin Phase I
+# He Sapa Mining Landscape Digital Twin Phase I
 
-**Authors:** Lilly Jones, PhD 
-**Territory:** He Sapa (Black Hills) Unceded Lakota Territory                                          
-**Phase:** I: Public data only. No sensitive Tribal data.
+**Author:** Lilly Jones, PhD
 
-## Territorial Acknowledgment
-He Sapa (the Black Hills) is unceded Lakota territory. The 1877
-Congressional act taking He Sapa was ruled unconstitutional by the
-US Supreme Court in *United States v. Sioux Nation of Indians*, 448
-U.S. 371 (1980). The Treaty Nations have declined compensation,
-maintaining that the land was never legally transferred.
+**Territory:** He Sapa (Black Hills), unceded Lakota territory
 
-This repository reconstructs the mining history of He Sapa using
-public federal data. Every record in this system carries this Treaty status and 
-territorial context as a provenance field.
+**Status:** Public-federal-data prototype; no sensitive Tribal data
 
-## Purpose
-A temporal, sovereignty-aware digital twin reconstructing
-the evolution of mining landscapes in the Black Hills of South Dakota and Wyoming.
+He Sapa was guaranteed to the Lakota and their allies by the 1868 Fort Laramie
+Treaty. The taking of the Black Hills was held unconstitutional in *United
+States v. Sioux Nation of Indians*, 448 U.S. 371 (1980). The Treaty Nations
+have declined compensation and maintain that the land was never legally
+transferred. Every published record carries this territorial context.
 
-Phase I builds:
-- A mine gazetteer from USGS MRDS and BLM claims data
-- Environmental and watershed context layers
-- A temporal reconstruction of mining activity over time
-- A governance-aware data architecture ready for Phase II Tribal data
-- An interactive demo map for presentation to Tribal leaders
+## What is implemented
 
-Phase II will add sensitive Tribal data under full Tribal governance.
-The architecture supports this without redesign.
+- A USGS Mineral Resources Data System (MRDS) mine gazetteer for the study area.
+- HUC-8 watershed and NHDPlus HR order-2+ stream context layers.
+- A partial temporal reconstruction based on MRDS date fields.
+- A distance-to-mapped-stream screening metric. This is **not** evidence of
+  contamination, exposure, hydrologic connectivity, or environmental risk.
+- Record-level territorial, source, AI-origin, and human-review metadata.
+- A Folium demonstration map generated from the public Phase I outputs.
 
-## Notebooks
-| Notebook | Title | Output |
-|---|---|---|
-| 01 | Mine Gazetteer | MRDS and BLM GeoPackage of all Black Hills mines |
-| 02 | Environmental Context | Watersheds, hydrology, geology |
-| 03 | Temporal Reconstruction | Mining activity by era, commodity, status |
-| 04 | Disturbance and Impact | Tailings, contamination risk, watershed exposure |
-| 05 | Governance Layer | CARE/OCAP/TK Notice/IEEE 2890-2025 on every record |
-| 06 | Interactive Demo Map | Folium map with timeline, layers, mine inspections |
+BLM claims, 3DEP terrain, geologic units, NLCD/LCMAP change, and production-scale
+USGS bulletin extraction are planned but not implemented yet in Phase I data sources.
 
-## Study Area
-**He Sapa (Black Hills), South Dakota**  
-Bounding box: `-104.6°W to -103.3°W`, `43.4°N to 44.6°N`
+## Governance status
 
-This captures the full Black Hills uplift and the geographic, geological,
-and mining district boundary that defines the area of extraction.
-The 1868 Fort Laramie Treaty territory extends far beyond this box;
-that broader context is documented in the provenance fields of every
-record, not truncated by the spatial filter.
+The project implements a provenance scaffold informed by CARE, FAIR, OCAP®, Local
+Contexts, and IEEE 2890-2025. It does not claim independent certification or
+Nation authorization. Phase II governance prerequisites remain open, and no
+sensitive Tribal data may enter this repository until they are satisfied. See
+[the canonical governance status](docs/data_governance.md).
 
-## Data Sources
-| Source | What | Notebook |
-|---|---|---|
-| USGS MRDS WFS | ~847 mine records, Black Hills NF | 01 |
-| BLM LR2000 | 58,581 SD mining claims | 01 |
-| USGS WBD | HUC-8/10/12 watersheds | 02 |
-| USGS NHD | Stream network | 02 |
-| USGS 3DEP | Elevation / terrain | 02 |
-| USGS National Geologic Map | Geologic units | 02 |
-| Claude API | Structured extraction from USGS bulletins | 03 |
-| USGS NLCD/LCMAP | Land cover change | 04 |
+## Study area
 
-## Quick Start
+The Phase I bounding box is `(-104.6, 43.4, -103.3, 44.6)` in EPSG:4326. It is
+an analytical window around the Black Hills and is not a Treaty boundary. The
+1868 Treaty territory extends far beyond it.
+
+## Reproducible setup
+
 ```bash
-git clone https://github.com/your-org/black_hills_mining_twin
-cd black_hills_mining_twin
-
+git clone https://github.com/lijo8146/hesapatwin.git
+cd hesapatwin
 conda env create -f environment.yml
 conda activate black-hills-twin
 python -m ipykernel install --user --name black-hills-twin \
-    --display-name "Python (black-hills-twin)"
-
-# Add your Anthropic API key for notebook 03
-cp .env.example .env
-# Edit .env and add: ANTHROPIC_API_KEY=sk-ant-...
-
-jupyter lab notebooks/
-```
-Run notebooks in order 01-06.
-
-## Repository Structure
-```
-black_hills_mining_twin/
-├── notebooks/
-│   ├── 01_mine_gazetteer.ipynb
-│   ├── 02_environmental_context.ipynb
-│   ├── 03_temporal_reconstruction.ipynb
-│   ├── 04_disturbance_impact.ipynb
-│   ├── 05_governance_layer.ipynb
-│   └── 06_interactive_demo_map.ipynb
-├── src/
-│   ├── constants.py        # Bounding box, CRS, provenance fields
-│   ├── loaders.py          # MRDS WFS, BLM, NHD, WBD loaders
-│   └── sovereignty.py      # Governance acknowledgment + citations
-├── data/
-│   └── cache/              # GITIGNORED: downloaded datasets
-├── outputs/                # GITIGNORED: analysis products
-│   └── figures/
-├── docs/
-│   └── data_sovereignty.md
-├── .env.example
-├── .gitignore
-├── environment.yml
-└── README.md
+  --display-name "Python (black-hills-twin)"
+jupyter lab Notebooks/
 ```
 
-## Governance Frameworks
-Every record in this system is governed by:
+For an exact reproduction of the verified Windows environment, use
+`conda create -n black-hills-twin --file environment-win-64.lock.txt`.
 
-- **OCAP®** Oceti Sakowin and allied Nations have Ownership,
-  Control, Access, and Possession of data describing their territory
-- **CARE** Collective Benefit, Authority to Control,
-  Responsibility, Ethics
-- **FAIR** Findable, Accessible, Interoperable, Reusable
-- **IEEE 2890-2025** Provenance of Indigenous Peoples' Data
-- **Local Contexts TK Notice** Indigenous interests exist in all
-  records describing He Sapa; contact originating communities
-  before use
+Run notebooks 01–06 in order. Cached source data and generated outputs are
+ignored by default. Published releases should contain selected artifacts plus a
+checksum-bearing manifest produced by `src.validation.write_manifest`.
 
-Phase II will add full Tribal data governance with Nation-authorized
-TK and BC labels from Local Contexts.
+## Verification
 
-## Citation
-Jones, L. (2026). Black Hills Mining Landscape Digital Twin,
-Phase I. 
+```bash
+pytest
+python scripts/check_notebooks.py
+python -m compileall -q src
+```
+
+CI runs the same static and unit checks. Network-dependent notebook execution is
+kept separate because upstream federal services can be unavailable; release
+generation must run the complete notebooks and validate artifacts before
+publication.
+
+## Repository layout
+
+```text
+Notebooks/              ordered analytical workflow
+src/                    loaders, constants, provenance, validation
+tests/                  unit and schema tests
+scripts/                notebook/release checks
+data/cache/             downloaded public source data (generated)
+outputs/                generated analysis artifacts
+docs/                   governance status and selected public demo
+.github/workflows/      continuous integration
+```
+
+## Data quality and interpretation
+
+MRDS maintenance and coverage are incomplete, commodity values require parsing,
+and date coverage is sparse. Counts describe records returned by the documented
+query, not a complete inventory of mines or environmental impacts. Stream
+proximity uses only mapped order-2+ flowlines. All public findings must retain
+these limitations and identify the source retrieval date and transformation
+version.
+
+## Citation and license
+
+Citation metadata are in [CITATION.cff](CITATION.cff). Repository-authored code
+and documentation use the MIT License; upstream datasets retain their own terms.
+The license does not apply to Indigenous knowledge or future Tribal-governed
+data. See [LICENSE](LICENSE) and [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -15,13 +15,13 @@ import logging
 import warnings
 import zipfile
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import requests
 import geopandas as gpd
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.constants import (
     CACHE_DIR, CRS_GEOGRAPHIC, CRS_PROJECTED,
@@ -30,16 +30,26 @@ from src.constants import (
 
 log = logging.getLogger(__name__)
 
-_retry = retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    reraise=True,
-)
 
+class DataSourceError(RuntimeError):
+    """Raised when a remote source cannot produce a valid, auditable dataset."""
+
+
+def _validate_geojson_response(response: requests.Response, source: str) -> dict:
+    """Validate an ArcGIS GeoJSON response and return its decoded payload."""
+    response.raise_for_status()
+    try:
+        payload = response.json()
+    except requests.JSONDecodeError as exc:
+        raise DataSourceError(f"{source} returned invalid JSON") from exc
+    if payload.get("error"):
+        raise DataSourceError(f"{source} error: {payload['error']}")
+    if payload.get("type") != "FeatureCollection" or not payload.get("features"):
+        raise DataSourceError(f"{source} returned no features")
+    return payload
 
 # MRDS Mine Gazetteer
 
-@_retry
 def load_mrds_mines(
     bbox: tuple[float, float, float, float],
     force_refresh: bool = False,
@@ -72,8 +82,7 @@ def load_mrds_mines(
     r.raise_for_status()
 
     if not r.text.strip():
-        warnings.warn("MRDS WFS returned empty response.", UserWarning)
-        return gpd.GeoDataFrame()
+        raise DataSourceError("MRDS WFS returned an empty response")
 
     from xml.etree import ElementTree as ET
     from shapely.geometry import Point
@@ -81,8 +90,7 @@ def load_mrds_mines(
     try:
         root = ET.fromstring(r.text)
     except ET.ParseError as e:
-        warnings.warn(f"MRDS WFS GML parse error: {e}", UserWarning)
-        return gpd.GeoDataFrame()
+        raise DataSourceError("MRDS WFS returned invalid GML") from e
 
     ns = {
         "wfs": "http://www.opengis.net/wfs",
@@ -121,12 +129,7 @@ def load_mrds_mines(
             records.append(rec)
 
     if not records:
-        warnings.warn(
-            f"MRDS WFS returned 0 parseable records for bbox {bbox}. "
-            "Mine monitoring coverage on Tribal lands may be sparse.",
-            UserWarning,
-        )
-        return gpd.GeoDataFrame()
+        raise DataSourceError(f"MRDS WFS returned no parseable records for {bbox}")
 
     gdf = gpd.GeoDataFrame(records, geometry="geometry", crs="EPSG:4326")
     gdf.to_file(cache_file, driver="GeoJSON")
@@ -168,9 +171,21 @@ def clean_mrds(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return gdf
 
 
+def assign_commodity_group(value: object, groups: dict[str, list[object]]) -> str:
+    """Classify a normalized MRDS commodity/code-list value."""
+    if value is None or pd.isna(value):
+        return "other"
+    text = str(value).casefold().strip()
+    for group, terms in groups.items():
+        if group == "other":
+            continue
+        if any(str(term).casefold() in text for term in terms if term is not None):
+            return group
+    return "other"
+
+
 # WBD Watershed Boundaries
 
-@_retry
 def load_wbd(
     bbox: tuple[float, float, float, float] = BLACK_HILLS_BBOX,
     huc_level: int = 8,
@@ -207,27 +222,18 @@ def load_wbd(
         timeout=120,
     )
 
-    try:
-        payload = r.json()
-    except Exception:
-        warnings.warn("WBD response is not valid JSON.", UserWarning)
-        return gpd.GeoDataFrame()
-
-    if payload.get("error") or not payload.get("features"):
-        warnings.warn(f"WBD returned no features: {payload.get('error')}", UserWarning)
-        return gpd.GeoDataFrame()
+    _validate_geojson_response(r, "WBD")
 
     gdf = gpd.read_file(io.BytesIO(r.content))
     if not gdf.empty:
         gdf = gdf.set_crs(CRS_GEOGRAPHIC, allow_override=True)
         gdf.to_file(cache_file, driver="GeoJSON")
-    print(f"WBD HUC-{huc_level}: {len(gdf)} watersheds")
+    log.info("WBD HUC-%s: %s watersheds", huc_level, len(gdf))
     return gdf
 
 
 # NHD Stream Network
 
-@_retry
 def load_nhd_streams(
     bbox: tuple[float, float, float, float] = BLACK_HILLS_BBOX,
     min_stream_order: int = 2,
@@ -261,13 +267,7 @@ def load_nhd_streams(
         },
         timeout=120,
     )
-    try:
-        payload = r.json()
-    except Exception:
-        return gpd.GeoDataFrame()
-
-    if payload.get("error") or not payload.get("features"):
-        return gpd.GeoDataFrame()
+    _validate_geojson_response(r, "NHDPlus HR")
 
     gdf = gpd.read_file(io.BytesIO(r.content))
     if not gdf.empty:
@@ -276,7 +276,7 @@ def load_nhd_streams(
         if reach_col:
             gdf = gdf.drop_duplicates(subset=[reach_col]).reset_index(drop=True)
         gdf.to_file(cache_file, driver="GeoJSON")
-    print(f"NHD streams (order >= {min_stream_order}): {len(gdf):,} segments")
+    log.info("NHD streams (order >= %s): %s segments", min_stream_order, len(gdf))
     return gdf
 
 

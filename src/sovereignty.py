@@ -66,8 +66,7 @@ _DATA_SOURCES = {
         ),
         "note": (
             "MRDS systematic updates ceased in 2011. Records reflect "
-            "historical data quality issues. Claude API extraction from "
-            "primary USGS bulletins supplements and corrects MRDS records."
+            "historical data quality issues and incomplete date coverage."
         ),
     },
     "blm_claims": {
@@ -108,27 +107,12 @@ _DATA_SOURCES = {
             "US Geological Survey. doi:10.5066/P9OGBGM6"
         ),
     },
-    "claude_api": {
-        "name":    "Anthropic Claude API — structured extraction",
-        "url":     "https://www.anthropic.com",
-        "steward": "Daear Consulting / ESIIL (extraction pipeline)",
-        "license": "Outputs are derivative of public-domain USGS source documents",
-        "note": (
-            "AI-extracted records enter the gazetteer only after human review. "
-            "No autonomous historical interpretation. "
-            "ai_generated=True and human_verified fields track extraction source."
-        ),
-    },
     "usgs_bulletins": {
         "name":    "USGS Mineral Resource Bulletins and Professional Papers",
         "url":     "https://pubs.usgs.gov/",
         "steward": "US Geological Survey",
         "license": "Public domain (USGS)",
-        "note": (
-            "Primary source documents for Claude API extraction pipeline. "
-            "Key reference: USGS IMAP 2445 26 quadrangle maps at 1:24,000 "
-            "covering He Sapa mine locations, prospects, and patented claims."
-        ),
+        "note": "Primary historical sources for future manually reviewed research.",
     },
 }
 
@@ -180,8 +164,6 @@ def generate_citations(source_keys: list[str]) -> str:
 
 def build_record_provenance(
     source_key: str,
-    ai_generated: bool = False,
-    human_verified: bool = False,
     notes: str = "",
 ) -> dict:
     """
@@ -189,9 +171,7 @@ def build_record_provenance(
     Attach this to every row in the gazetteer.
 
     Parameters
-    source_key     : Key from _DATA_SOURCES (e.g. 'mrds', 'claude_api')
-    ai_generated   : True if this record was extracted by Claude API
-    human_verified : True if a human reviewer confirmed the record
+    source_key     : Key from _DATA_SOURCES (e.g. 'mrds')
     notes          : Free-text provenance notes
     """
     src = _DATA_SOURCES.get(source_key, {})
@@ -201,8 +181,6 @@ def build_record_provenance(
         "prov_source_url":    src.get("url", ""),
         "prov_data_steward":  src.get("steward", ""),
         "prov_license":       src.get("license", ""),
-        "ai_generated":       ai_generated,
-        "human_verified":     human_verified,
         "prov_notes":         notes,
-        "ieee_2890_compliant": True,
+        "ieee_2890_status":    "scaffold_only_review_required",
     }

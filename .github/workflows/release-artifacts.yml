@@ -1,0 +1,37 @@
+name: Build release artifacts
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: black-hills-twin
+          auto-activate-base: false
+      - name: Execute notebooks in order
+        shell: bash -el {0}
+        run: |
+          for notebook in Notebooks/*.ipynb; do
+            jupyter nbconvert --to notebook --execute --inplace \
+              --ExecutePreprocessor.timeout=600 "$notebook"
+          done
+      - name: Validate release gazetteer
+        shell: bash -el {0}
+        run: |
+          python - <<'PY'
+          import geopandas as gpd
+          from src.validation import validate_gazetteer
+          validate_gazetteer(gpd.read_file("outputs/he_sapa_mine_gazetteer.geojson"))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: he-sapa-phase-i-${{ github.sha }}
+          path: |
+            outputs/
+            docs/he_sapa_mining_twin_demo.html
+            Notebooks/

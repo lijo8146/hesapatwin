@@ -1,0 +1,11 @@
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+data/cache/*
+outputs/*
+!data/cache/.gitkeep
+!outputs/.gitkeep
+!outputs/figures/.gitkeep

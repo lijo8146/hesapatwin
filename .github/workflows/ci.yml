@@ -1,0 +1,25 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: black-hills-twin
+          auto-activate-base: false
+      - name: Unit tests
+        shell: bash -el {0}
+        run: pytest
+      - name: Compile source
+        shell: bash -el {0}
+        run: python -m compileall -q src
+      - name: Check notebook syntax and saved errors
+        shell: bash -el {0}
+        run: python scripts/check_notebooks.py
+

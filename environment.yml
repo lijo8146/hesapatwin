@@ -29,13 +29,11 @@ dependencies:
   - contextily>=1.4
   - folium>=0.14          # Interactive demo map
   - branca>=0.6           # Folium colormap support
-  # AI extraction
-  - anthropic>=0.25       # Claude API for structured extraction
   # Notebooks
   - jupyter>=1.0
   - jupyterlab>=4.0
   - ipykernel>=6.0
+  - pytest=8.3.*
   # Utilities 
   - pyyaml>=6.0
-  - python-dotenv>=1.0
   - tqdm>=4.65

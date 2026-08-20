@@ -6,6 +6,7 @@ in this repository derives from values defined here.
 """
 from __future__ import annotations
 from pathlib import Path
+from typing import Final
 
 # Repository root
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ CRS_PROJECTED  = "EPSG:5070"    # Albers Equal Area CONUS for area/distance
 # that broader context is documented in TREATY_PROVENANCE below,
 # not truncated by this spatial filter.
 BLACK_HILLS_BBOX = (-104.6, 43.4, -103.3, 44.6)
+PROJECT_VERSION: Final = "0.2.0"
 
 # Centroid for point-based queries
 BLACK_HILLS_LAT = 44.0
@@ -123,7 +125,9 @@ TREATY_PROVENANCE = {
     "phase_ii_sensitivity":    "review_required",
     "tribal_review_required":  "yes for any external publication or distribution",
     "redistribution_allowed":  "yes with attribution and TK Notice label",
-    "ieee_2890_compliant":     True,
+    # Compliance must be demonstrated by a reviewed, criterion-level audit.
+    # This project currently implements a provenance scaffold only.
+    "ieee_2890_status":        "scaffold_only_review_required",
     "data_steward_phase1":     "Daear Consulting, LLC",
     "data_steward_note": (
         "Phase I stewardship is temporary. Transfer to Lakota Nation "
