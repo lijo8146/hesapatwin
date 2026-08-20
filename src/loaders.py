@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 loaders.py data download and cache functions for black_hills_mining_twin.
 
@@ -7,7 +9,6 @@ Primary sources:
   - USGS NHD                  (stream network)
   - USGS 3DEP TNM API         (elevation)
 """
-from __future__ import annotations
 
 import io
 import json

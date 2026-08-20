@@ -1,5 +1,6 @@
-"""Static notebook gate: parse code cells and reject persisted exceptions."""
 from __future__ import annotations
+
+"""Static notebook gate: parse code cells and reject persisted exceptions."""
 
 import ast
 import json

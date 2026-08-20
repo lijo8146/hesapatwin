@@ -1,5 +1,6 @@
-"""Validation and release-manifest helpers for published project artifacts."""
 from __future__ import annotations
+
+"""Validation and release-manifest helpers for published project artifacts."""
 
 import hashlib
 import json

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 constants.py project-wide constants for black_hills_mining_twin.
 
 Every spatial query, provenance record, and governance field
 in this repository derives from values defined here.
 """
-from __future__ import annotations
 from pathlib import Path
 from typing import Final
 

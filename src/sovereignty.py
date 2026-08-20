@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 sovereignty.py governance acknowledgment for black_hills_mining_twin.
 
@@ -5,7 +7,6 @@ He Sapa (the Black Hills) is unceded Lakota territory.
 This module makes that context visible at the top of every notebook
 and in every data citation block.
 """
-from __future__ import annotations
 from src.constants import TREATY_PROVENANCE, GOVERNANCE_REFS
 
 _PREAMBLE = """
@@ -123,7 +124,6 @@ def print_data_acknowledgment(source_keys: list[str] | None = None) -> None:
     if not source_keys:
         return
     print("DATA SOURCES FOR THIS NOTEBOOK")
-    print("=" * 60)
     for key in source_keys:
         src = _DATA_SOURCES.get(key)
         if not src:
