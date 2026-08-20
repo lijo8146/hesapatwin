@@ -6,7 +6,7 @@
 
 **Status:** Public-federal-data prototype; no sensitive Tribal data
 
-He Sapa was guaranteed to the Lakota and their allies by the 1868 Fort Laramie
+He Sapa (the Black Hills) was guaranteed to the Lakota and their allies by the 1868 Fort Laramie
 Treaty. The taking of the Black Hills was held unconstitutional in *United
 States v. Sioux Nation of Indians*, 448 U.S. 371 (1980). The Treaty Nations
 have declined compensation and maintain that the land was never legally
